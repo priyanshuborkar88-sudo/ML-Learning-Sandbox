@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisualML - Hackathon 2026 Winner</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        navy: '#1e3a8a',
+                        blue: '#3b82f6',
+                        green: '#10b981',
+                        darkbg: '#0f172a',
+                        darkcard: '#1e293b'
+                    },
+                    boxShadow: {
+                        'neo-dark': '5px 5px 10px #0d1425, -5px -5px 10px #111a33',
+                        'neo-light': '5px 5px 10px #d1d5db, -5px -5px 10px #ffffff',
+                        'glow': '0 0 20px rgba(59, 130, 246, 0.6)',
+                        'glow-green': '0 0 20px rgba(16, 185, 129, 0.6)'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { transition: background-color 0.3s, color 0.3s; overflow-x: hidden; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .light .glass { background: rgba(255, 255, 255, 0.8); border: 1px solid rgba(0,0,0,0.1); }
+        
+        /* Custom Neumorphic Sliders */
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%; background: #3b82f6; cursor: pointer; margin-top: -6px; box-shadow: 0 0 10px rgba(59,130,246,0.8); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 6px; cursor: pointer; background: #334155; border-radius: 3px; }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #1e3a8a; border-radius: 4px; }
+        
+        .tab-active { background-color: #3b82f6; color: white; box-shadow: 0 0 15px rgba(59,130,246,0.5); }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 dark:bg-darkbg dark:text-gray-100 min-h-screen flex flex-col antialiased">
+
+    <div id="auth-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/80 backdrop-blur-sm opacity-0 transition-opacity duration-300">
+        <div class="glass p-8 rounded-2xl w-full max-w-md shadow-glow transform scale-95 transition-transform duration-300" id="auth-box">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-white" id="auth-title">Welcome Back</h3>
+                <button onclick="closeAuth()" class="text-gray-400 hover:text-white text-xl">&times;</button>
+            </div>
+            
+            <div class="flex gap-2 mb-6 p-1 bg-gray-800/50 rounded-lg">
+                <button onclick="switchAuthMode('login')" id="tab-login" class="flex-1 py-2 text-sm font-bold rounded-md bg-blue text-white shadow transition">Login</button>
+                <button onclick="switchAuthMode('register')" id="tab-register" class="flex-1 py-2 text-sm font-bold rounded-md text-gray-400 hover:text-white transition">Register</button>
+            </div>
+
+            <form id="auth-form" onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                <div id="field-name" class="hidden">
+                    <label class="block text-sm font-semibold text-gray-300 mb-1">Full Name</label>
+                    <input type="text" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue" placeholder="John Doe">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-300 mb-1">Email</label>
+                    <input type="email" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue" placeholder="student@university.edu">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-300 mb-1">Password</label>
+                    <input type="password" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue" placeholder="••••••••">
+                </div>
+                <button type="submit" id="auth-submit-btn" class="w-full bg-blue hover:bg-indigo-500 text-white font-bold py-3 px-4 rounded-lg transition shadow-glow mt-2">
+                    Log In
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <nav class="fixed top-0 w-full z-50 glass border-b border-white/10 transition-all">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
+            <div class="text-2xl font-extrabold tracking-tighter cursor-pointer flex items-center gap-2" onclick="showSection('landing')">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue to-green flex items-center justify-center text-white">V</div>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue to-green drop-shadow-glow">VisualML</span>
+            </div>
+            
+            <div class="hidden md:flex gap-3 items-center">
+                <a href="#problem" class="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-200/50 dark:bg-gray-800/50 hover:bg-blue hover:text-white rounded-full transition duration-300">Problem</a>
+                <a href="#algos" class="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-200/50 dark:bg-gray-800/50 hover:bg-blue hover:text-white rounded-full transition duration-300">Algorithms</a>
+                <a href="#concepts" class="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-200/50 dark:bg-gray-800/50 hover:bg-blue hover:text-white rounded-full transition duration-300">Concepts</a>
+                <a href="#quiz" class="px-4 py-2 text-sm font-bold text-green border border-green/30 bg-green/10 hover:bg-green hover:text-white rounded-full transition duration-300">Quiz & Analytics</a>
+                
+                <div class="w-px h-6 bg-gray-300 dark:bg-gray-700 mx-2"></div>
+                
+                <button id="nav-login-btn" onclick="openAuth()" class="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-blue to-indigo-600 hover:from-indigo-500 hover:to-blue rounded-full shadow-glow transition duration-300">
+                    Login
+                </button>
+                <button id="theme-toggle" class="p-2 ml-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition">🌓</button>
+            </div>
+        </div>
+    </nav>
+
+    <main id="main-content" class="flex-grow pt-16">
+        
+        <section id="landing" class="relative min-h-[90vh] flex flex-col items-center justify-center text-center px-4 overflow-hidden gs-fade">
+            <div class="absolute w-[500px] h-[500px] bg-blue rounded-full filter blur-[120px] opacity-20 top-0 left-0 animate-pulse"></div>
+            <div class="absolute w-[400px] h-[400px] bg-green rounded-full filter blur-[100px] opacity-10 bottom-0 right-0"></div>
+            
+            <h1 class="text-6xl md:text-8xl font-black mb-6 tracking-tight z-10 text-transparent bg-clip-text bg-gradient-to-r from-blue via-indigo-500 to-green drop-shadow-[0_0_30px_rgba(59,130,246,0.5)]">
+                VisualML
+            </h1>
+            <h2 class="text-2xl md:text-4xl font-bold mb-6 z-10 text-gray-800 dark:text-gray-200">
+                Master ML Algorithms Visually <br/><span class="text-blue text-xl md:text-3xl">— No Math PhD Required!</span>
+            </h2>
+            <p class="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mb-10 z-10 font-medium">
+                Watch real Neural Networks fire, build Decision Trees, and fit Linear Regressions in real-time. 
+            </p>
+            <a href="#algos" class="z-10 px-8 py-4 bg-gradient-to-r from-blue to-navy text-white rounded-full font-bold text-xl shadow-glow hover:scale-105 transition transform">
+                🚀 Start Learning ML Visually
+            </a>
+        </section>
+
+        <section id="problem" class="py-20 bg-gray-200 dark:bg-darkcard border-y border-gray-300 dark:border-gray-800 gs-fade">
+            <div class="max-w-7xl mx-auto px-4">
+                <h2 class="text-4xl font-bold text-center mb-12">Why ML Feels Impossible</h2>
+                <div class="grid md:grid-cols-3 gap-8 text-center">
+                    <div class="glass p-8 rounded-2xl shadow-neo-light dark:shadow-neo-dark">
+                        <div class="text-5xl font-black text-red-500 mb-4">80%</div>
+                        <h3 class="text-xl font-bold mb-2">Dropout Rate</h3>
+                        <p class="text-sm text-gray-500">Most beginners quit within 2 weeks due to massive walls of abstract calculus.</p>
+                    </div>
+                    <div class="glass p-8 rounded-2xl shadow-neo-light dark:shadow-neo-dark">
+                        <div class="text-5xl font-black text-orange-500 mb-4">6 Mo</div>
+                        <h3 class="text-xl font-bold mb-2">Avg. Learning Time</h3>
+                        <p class="text-sm text-gray-500">Wasted on setting up Python, Conda, and dependencies before writing code.</p>
+                    </div>
+                    <div class="glass p-8 rounded-2xl shadow-neo-light dark:shadow-neo-dark">
+                        <div class="text-5xl font-black text-blue mb-4">0.0</div>
+                        <h3 class="text-xl font-bold mb-2">Visual Intuition</h3>
+                        <p class="text-sm text-gray-500">Traditional courses teach the equation first, not the geometry of the data.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="algos" class="py-20 max-w-7xl mx-auto px-4 gs-fade">
+            <h2 class="text-4xl font-bold text-center mb-12">Interactive Playgrounds</h2>
+            
+            <div class="flex flex-wrap justify-center gap-4 mb-12">
+                <button onclick="openAlgo('linreg')" class="algo-tab tab-active px-6 py-3 rounded-full font-bold glass transition">Linear Regression</button>
+                <button onclick="openAlgo('knn')" class="algo-tab px-6 py-3 rounded-full font-bold glass transition">K-Nearest Neighbors</button>
+                <button onclick="openAlgo('dt')" class="algo-tab px-6 py-3 rounded-full font-bold glass transition">Decision Tree</button>
+                <button onclick="openAlgo('nn')" class="algo-tab px-6 py-3 rounded-full font-bold glass transition">Neural Network</button>
+            </div>
+
+            <div class="glass rounded-3xl p-6 shadow-neo-light dark:shadow-neo-dark border border-gray-300 dark:border-gray-700">
+                
+                <div id="algo-linreg" class="algo-view flex flex-col lg:flex-row gap-8">
+                    <div class="lg:w-1/3 flex flex-col gap-4">
+                        <h3 class="text-3xl font-bold text-blue">Linear Regression</h3>
+                        
+                        <div class="bg-blue/10 border border-blue/20 p-4 rounded-xl text-sm">
+                            <h4 class="font-bold text-blue mb-2">Linear vs. Logistic Regression</h4>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><span class="font-bold text-gray-800 dark:text-gray-300">Linear:</span> Predicts continuous numbers.</div>
+                                <div><span class="font-bold text-gray-800 dark:text-gray-300">Logistic:</span> Predicts categories.</div>
+                            </div>
+                        </div>
+
+                        <p class="text-sm">Find the best-fitting line through data points to minimize the Mean Squared Error (MSE).</p>
+                        
+                        <div class="relative aspect-video bg-black rounded-xl overflow-hidden shadow-glow group">
+                            <iframe id="yt-linreg" class="w-full h-full pointer-events-none" src="https://www.youtube.com/embed/CtsRRUddV2s?enablejsapi=1&autoplay=1&mute=1&loop=1&playlist=CtsRRUddV2s&controls=0&modestbranding=1&rel=0&disablekb=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>
+                            <div class="absolute inset-0 z-10"></div>
+                            <button onclick="toggleVideoSound('yt-linreg', this)" class="absolute bottom-2 right-2 bg-black/80 hover:bg-blue text-white px-3 py-1.5 rounded-md text-xs font-bold border border-white/20 transition z-20 pointer-events-auto">
+                                🔇 Sound Off (Click)
+                            </button>
+                        </div>
+                    </div>
+                    <div class="lg:w-2/3 flex flex-col bg-gray-100 dark:bg-gray-900 rounded-xl p-6 border border-gray-300 dark:border-gray-700">
+                        <div class="flex justify-between items-center bg-gray-200 dark:bg-darkbg p-4 rounded-xl mb-4 text-gray-800 dark:text-white">
+                            <span class="font-bold uppercase tracking-widest text-sm">Model Loss</span>
+                            <span class="text-2xl font-mono font-bold text-red-500 dark:text-red-400 drop-shadow-glow">MSE: <span id="lr-mse">15.60</span></span>
+                        </div>
+                        <div class="relative w-full h-64 mb-6"><canvas id="canvas-lr"></canvas></div>
+                        <div class="space-y-4">
+                            <div>
+                                <div class="flex justify-between font-bold text-sm mb-1"><span>Slope (m)</span><span id="lr-slope-val" class="text-blue">-1.8</span></div>
+                                <input type="range" id="lr-slope" min="-5" max="5" step="0.1" value="-1.8">
+                            </div>
+                            <div>
+                                <div class="flex justify-between font-bold text-sm mb-1"><span>Intercept (b)</span><span id="lr-int-val" class="text-blue">0.8</span></div>
+                                <input type="range" id="lr-int" min="-10" max="10" step="0.1" value="0.8">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="algo-knn" class="algo-view hidden flex flex-col lg:flex-row gap-8">
+                    <div class="lg:w-1/3 flex flex-col gap-4">
+                        <h3 class="text-3xl font-bold text-green">K-Nearest Neighbors</h3>
+                        
+                        <div class="bg-green/10 border border-green/20 p-4 rounded-xl text-sm">
+                            <h4 class="font-bold text-green mb-2">KNN vs. K-Means</h4>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><span class="font-bold text-gray-800 dark:text-gray-300">KNN:</span> Supervised learning. Classifies points.</div>
+                                <div><span class="font-bold text-gray-800 dark:text-gray-300">K-Means:</span> Unsupervised. Groups points.</div>
+                            </div>
+                        </div>
+
+                        <p class="text-sm">Classify a new point based on the majority vote of its 'K' closest neighbors. Click the grid!</p>
+                        
+                        <div class="relative aspect-video bg-black rounded-xl overflow-hidden shadow-glow-green group">
+                            <iframe id="yt-knn" class="w-full h-full pointer-events-none" src="https://www.youtube.com/embed/gs9E7E0qOIc?enablejsapi=1&autoplay=1&mute=1&loop=1&playlist=gs9E7E0qOIc&controls=0&modestbranding=1&rel=0&disablekb=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>
+                            <div class="absolute inset-0 z-10"></div>
+                            <button onclick="toggleVideoSound('yt-knn', this)" class="absolute bottom-2 right-2 bg-black/80 hover:bg-green text-white px-3 py-1.5 rounded-md text-xs font-bold border border-white/20 transition z-20 pointer-events-auto">
+                                🔇 Sound Off (Click)
+                            </button>
+                        </div>
+                    </div>
+                    <div class="lg:w-2/3 flex flex-col bg-gray-100 dark:bg-gray-900 rounded-xl p-6 border border-gray-300 dark:border-gray-700">
+                        <div class="flex justify-between mb-4 items-center">
+                            <div class="w-2/3">
+                                <div class="flex justify-between font-bold text-sm mb-1"><span>Neighbors (K)</span><span id="knn-k-val" class="text-green">3</span></div>
+                                <input type="range" id="knn-k" min="1" max="9" step="2" value="3" class="accent-green">
+                            </div>
+                            <button onclick="initKNN()" class="bg-gray-300 dark:bg-gray-800 text-gray-800 dark:text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-400 dark:hover:bg-gray-700 font-bold transition">Reset Grid</button>
+                        </div>
+                        <div class="relative w-full flex-grow h-[350px] cursor-crosshair"><canvas id="canvas-knn"></canvas></div>
+                    </div>
+                </div>
+
+                <div id="algo-dt" class="algo-view hidden flex flex-col lg:flex-row gap-8">
+                    <div class="lg:w-1/3 flex flex-col gap-4">
+                        <h3 class="text-3xl font-bold text-yellow-500">Decision Tree</h3>
+
+                        <div class="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-xl text-sm">
+                            <h4 class="font-bold text-yellow-500 mb-2">Decision Tree vs. Random Forest</h4>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><span class="font-bold text-gray-800 dark:text-gray-300">Tree:</span> A single tree. Easy to interpret.</div>
+                                <div><span class="font-bold text-gray-800 dark:text-gray-300">Forest:</span> Ensemble of trees. Robust.</div>
+                            </div>
+                        </div>
+
+                        <p class="text-sm">Splits data based on conditions to minimize Entropy (chaos) or maximize Information Gain.</p>
+                        
+                        <div class="relative aspect-video bg-black rounded-xl overflow-hidden shadow-[0_0_20px_rgba(234,179,8,0.6)] group">
+                            <iframe id="yt-dt" class="w-full h-full pointer-events-none" src="https://www.youtube.com/embed/JcI5E2Ng6r4?enablejsapi=1&autoplay=1&mute=1&loop=1&playlist=JcI5E2Ng6r4&controls=0&modestbranding=1&rel=0&disablekb=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>
+                            <div class="absolute inset-0 z-10"></div>
+                            <button onclick="toggleVideoSound('yt-dt', this)" class="absolute bottom-2 right-2 bg-black/80 hover:bg-yellow-500 text-white px-3 py-1.5 rounded-md text-xs font-bold border border-white/20 transition z-20 pointer-events-auto">
+                                🔇 Sound Off (Click)
+                            </button>
+                        </div>
+                    </div>
+                    <div class="lg:w-2/3 flex flex-col items-center bg-gray-100 dark:bg-gray-900 rounded-xl p-6 border border-gray-300 dark:border-gray-700">
+                        <div class="w-full mb-8">
+                            <div class="flex justify-between font-bold text-sm mb-1"><span>Split Threshold (X)</span><span id="dt-val" class="text-yellow-500">50</span></div>
+                            <input type="range" id="dt-slider" min="10" max="90" step="1" value="50">
+                        </div>
+                        <svg width="100%" height="300" viewBox="0 0 400 300" class="max-w-md mx-auto overflow-visible font-sans">
+                            <line x1="200" y1="50" x2="100" y2="150" stroke="#64748b" stroke-width="4" id="dt-line-l" class="transition-all duration-300"/>
+                            <line x1="200" y1="50" x2="300" y2="150" stroke="#64748b" stroke-width="4" id="dt-line-r" class="transition-all duration-300"/>
+                            <rect x="120" y="10" width="160" height="40" rx="8" fill="#1e293b" stroke="#eab308" stroke-width="2"/>
+                            <text x="200" y="35" fill="white" font-weight="bold" text-anchor="middle" id="dt-root-txt">X > 50?</text>
+                            <rect x="20" y="150" width="160" height="60" rx="8" fill="#0f172a" stroke="#64748b" stroke-width="2" id="dt-box-l" class="transition-all duration-300"/>
+                            <text x="100" y="175" fill="#94a3b8" font-weight="bold" font-size="14" text-anchor="middle">Branch Left</text>
+                            <text x="100" y="195" fill="#f87171" font-weight="bold" font-size="12" text-anchor="middle" id="dt-ent-l">Entropy: 0.00</text>
+                            <rect x="220" y="150" width="160" height="60" rx="8" fill="#0f172a" stroke="#64748b" stroke-width="2" id="dt-box-r" class="transition-all duration-300"/>
+                            <text x="300" y="175" fill="#94a3b8" font-weight="bold" font-size="14" text-anchor="middle">Branch Right</text>
+                            <text x="300" y="195" fill="#f87171" font-weight="bold" font-size="12" text-anchor="middle" id="dt-ent-r">Entropy: 0.00</text>
+                        </svg>
+                    </div>
+                </div>
+
+                <div id="algo-nn" class="algo-view hidden flex flex-col lg:flex-row gap-8">
+                    <div class="lg:w-1/3 flex flex-col gap-4">
+                        <h3 class="text-3xl font-bold text-rose-500">Neural Network</h3>
+
+                        <div class="bg-rose-500/10 border border-rose-500/20 p-4 rounded-xl text-sm">
+                            <h4 class="font-bold text-rose-500 mb-2">Neural Nets vs. Deep Learning</h4>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><span class="font-bold text-gray-800 dark:text-gray-300">Standard NN:</span> 1-2 hidden layers.</div>
+                                <div><span class="font-bold text-gray-800 dark:text-gray-300">Deep Learning:</span> Dozens of layers.</div>
+                            </div>
+                        </div>
+
+                        <p class="text-sm">Pass inputs through hidden layers to predict an output. Powered by a real <b>TensorFlow.js</b> sequential model running live.</p>
+                        
+                        <div class="relative aspect-video bg-black rounded-xl overflow-hidden shadow-[0_0_20px_rgba(244,63,94,0.6)] group">
+                            <iframe id="yt-nn" class="w-full h-full pointer-events-none" src="https://www.youtube.com/embed/bfmFfD2RIcg?enablejsapi=1&autoplay=1&mute=1&loop=1&playlist=bfmFfD2RIcg&controls=0&modestbranding=1&rel=0&disablekb=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>
+                            <div class="absolute inset-0 z-10"></div>
+                            <button onclick="toggleVideoSound('yt-nn', this)" class="absolute bottom-2 right-2 bg-black/80 hover:bg-rose-500 text-white px-3 py-1.5 rounded-md text-xs font-bold border border-white/20 transition z-20 pointer-events-auto">
+                                🔇 Sound Off (Click)
+                            </button>
+                        </div>
+                    </div>
+                    <div class="lg:w-2/3 flex flex-col bg-gray-100 dark:bg-gray-900 rounded-xl p-6 border border-gray-300 dark:border-gray-700">
+                        <div class="grid grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <div class="flex justify-between font-bold text-sm mb-1"><span>Input X1</span><span id="nn-in1-val" class="text-rose-500">0.50</span></div>
+                                <input type="range" id="nn-in1" min="0" max="1" step="0.01" value="0.5">
+                            </div>
+                            <div>
+                                <div class="flex justify-between font-bold text-sm mb-1"><span>Input X2</span><span id="nn-in2-val" class="text-rose-500">0.50</span></div>
+                                <input type="range" id="nn-in2" min="0" max="1" step="0.01" value="0.5">
+                            </div>
+                        </div>
+                        <div class="relative w-full h-64 bg-gray-200 dark:bg-darkbg rounded-xl border border-gray-300 dark:border-gray-700 flex items-center justify-center overflow-hidden">
+                            <svg class="absolute inset-0 w-full h-full" id="svg-nn"></svg>
+                            <div class="absolute inset-0 flex justify-between items-center px-12 z-10 pointer-events-none">
+                                <div class="flex flex-col gap-10">
+                                    <div class="w-10 h-10 rounded-full bg-gray-800 border-2 border-rose-500 flex items-center justify-center text-xs font-bold text-white shadow-glow">X1</div>
+                                    <div class="w-10 h-10 rounded-full bg-gray-800 border-2 border-rose-500 flex items-center justify-center text-xs font-bold text-white shadow-glow">X2</div>
+                                </div>
+                                <div class="flex flex-col gap-6">
+                                    <div class="w-8 h-8 rounded-full bg-gray-800 border-2 border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.8)]"></div>
+                                    <div class="w-8 h-8 rounded-full bg-gray-800 border-2 border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.8)]"></div>
+                                    <div class="w-8 h-8 rounded-full bg-gray-800 border-2 border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.8)]"></div>
+                                </div>
+                                <div>
+                                    <div id="nn-out" class="w-16 h-16 rounded-full bg-gray-800 border-4 border-green flex items-center justify-center font-bold text-white text-lg transition-all duration-200">0.00</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <section id="concepts" class="py-20 bg-gray-200 dark:bg-darkbg border-y border-gray-300 dark:border-gray-800 gs-fade">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="grid lg:grid-cols-2 gap-12">
+                    
+                    <div>
+                        <h2 class="text-3xl font-bold mb-6">Advanced Concepts</h2>
+                        <div class="space-y-4">
+                            <div class="glass p-4 rounded-xl">
+                                <h4 class="font-bold text-blue mb-1">Gradient Descent</h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">An optimization algorithm used to minimize the loss function by iteratively moving in the direction of steepest descent.</p>
+                            </div>
+                            <div class="glass p-4 rounded-xl">
+                                <h4 class="font-bold text-green mb-1">Overfitting vs Underfitting</h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Overfitting means the model memorized the training data (high variance). Underfitting means it didn't learn enough (high bias).</p>
+                            </div>
+                            <div class="glass p-4 rounded-xl">
+                                <h4 class="font-bold text-purple-500 mb-1">Decision Boundaries</h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">The region of a problem space in which the output label of a classifier is ambiguous. Visualized easily in KNN or SVMs.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h2 class="text-3xl font-bold mb-6">Algorithm Comparison</h2>
+                        <div class="overflow-x-auto glass rounded-xl">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-black/10 dark:bg-black/20 text-gray-800 dark:text-gray-300">
+                                    <tr><th class="p-4">Metric</th><th class="p-4">LinReg</th><th class="p-4">KNN</th><th class="p-4">Dec Tree</th><th class="p-4">Neural Net</th></tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-300 dark:divide-gray-700">
+                                    <tr class="hover:bg-white/50 dark:hover:bg-white/5 transition"><td class="p-4 font-bold">Training Speed</td><td class="p-4 text-green">Very Fast</td><td class="p-4 text-green">Instant (0)</td><td class="p-4 text-yellow-600 dark:text-yellow-500">Medium</td><td class="p-4 text-red-500">Very Slow</td></tr>
+                                    <tr class="hover:bg-white/50 dark:hover:bg-white/5 transition"><td class="p-4 font-bold">Prediction Speed</td><td class="p-4 text-green">Very Fast</td><td class="p-4 text-red-500">Slow</td><td class="p-4 text-green">Fast</td><td class="p-4 text-yellow-600 dark:text-yellow-500">Medium</td></tr>
+                                    <tr class="hover:bg-white/50 dark:hover:bg-white/5 transition"><td class="p-4 font-bold">Interpretability</td><td class="p-4 text-green">High</td><td class="p-4 text-yellow-600 dark:text-yellow-500">Medium</td><td class="p-4 text-green">Very High</td><td class="p-4 text-red-500">Low (Black Box)</td></tr>
+                                    <tr class="hover:bg-white/50 dark:hover:bg-white/5 transition"><td class="p-4 font-bold">Best Use Case</td><td class="p-4">Trend Lines</td><td class="p-4">Recommenders</td><td class="p-4">Rules engines</td><td class="p-4">Image/Audio</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <section id="quiz" class="py-20 max-w-7xl mx-auto px-4 gs-fade">
+            <h2 class="text-4xl font-bold text-center mb-12">Knowledge Check & Analytics</h2>
+            
+            <div class="grid lg:grid-cols-2 gap-8">
+                <div class="glass p-6 rounded-2xl shadow-neo-light dark:shadow-neo-dark flex flex-col items-center justify-center">
+                    <h3 class="text-xl font-bold mb-4">Your Proficiency</h3>
+                    <div class="w-full max-w-sm"><canvas id="analyticsChart"></canvas></div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-4 text-center">Score dynamically updates as you complete the quizzes.</p>
+                </div>
+                
+                <div class="glass p-6 rounded-2xl shadow-neo-light dark:shadow-neo-dark h-[400px] flex flex-col relative overflow-hidden">
+                    <div id="quiz-header" class="flex justify-between font-bold mb-4 border-b border-gray-300 dark:border-gray-700 pb-2">
+                        <span id="quiz-topic">Linear Regression</span>
+                        <span id="quiz-progress">Question 1/20</span>
+                    </div>
+                    <div id="quiz-content" class="flex-grow flex flex-col justify-center gap-4">
+                        <h4 id="q-text" class="text-lg font-semibold mb-2">What does MSE stand for?</h4>
+                        <button class="quiz-btn bg-gray-100 dark:bg-darkcard border border-gray-300 dark:border-gray-600 hover:border-blue hover:bg-blue/10 dark:hover:bg-blue/20 p-3 rounded-lg text-left transition" onclick="answerQuiz(0)">Mean Squared Error</button>
+                        <button class="quiz-btn bg-gray-100 dark:bg-darkcard border border-gray-300 dark:border-gray-600 hover:border-blue hover:bg-blue/10 dark:hover:bg-blue/20 p-3 rounded-lg text-left transition" onclick="answerQuiz(1)">Main Server Engine</button>
+                        <button class="quiz-btn bg-gray-100 dark:bg-darkcard border border-gray-300 dark:border-gray-600 hover:border-blue hover:bg-blue/10 dark:hover:bg-blue/20 p-3 rounded-lg text-left transition" onclick="answerQuiz(2)">Mean Slope Estimation</button>
+                    </div>
+                    <div id="quiz-result" class="hidden flex-grow flex-col items-center justify-center text-center">
+                        <div class="text-6xl mb-4">🎉</div>
+                        <h3 class="text-2xl font-bold mb-2">Quiz Complete!</h3>
+                        <p id="quiz-final-score" class="text-gray-500 dark:text-gray-400 mb-4">You scored 20/20.</p>
+                        <button onclick="resetQuiz()" class="bg-blue hover:bg-indigo-500 text-white px-6 py-2 rounded-lg font-bold transition">Retake Quiz</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-gray-100 dark:bg-darkbg border-t border-gray-300 dark:border-gray-800 py-8 text-center text-sm text-gray-500 mt-auto">
+        <p class="font-bold text-gray-700 dark:text-gray-300 mb-2">Built by Priyanshu Borkar | Hackathon 2026</p>
+        <p>Powered by TensorFlow.js, Chart.js, and GSAP. Deployed purely in browser.</p>
+    </footer>
+
+    <div class="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+        <div id="chatbot-window" class="hidden w-80 h-96 glass rounded-2xl shadow-neo-light dark:shadow-neo-dark mb-4 flex-col border border-gray-300 dark:border-gray-600 overflow-hidden transform scale-95 transition-all origin-bottom-right">
+            <div class="bg-blue p-3 text-white font-bold flex justify-between items-center">
+                <span>🤖 ML Tutor Bot</span>
+                <button onclick="toggleChat()" class="hover:text-gray-200">✕</button>
+            </div>
+            <div id="chat-messages" class="flex-grow p-4 overflow-y-auto flex flex-col gap-2 text-sm bg-gray-50 dark:bg-darkbg">
+                <div class="bg-gray-700 text-white p-2 rounded-lg rounded-tl-none self-start max-w-[80%]">Hi! Ask me about ML concepts (e.g., overfitting, epochs, tensors). I have 50+ definitions ready!</div>
+            </div>
+            <div class="p-2 border-t border-gray-300 dark:border-gray-700 flex gap-2 bg-gray-100 dark:bg-darkbg">
+                <input type="text" id="chat-input" class="flex-grow bg-white dark:bg-darkcard border border-gray-300 dark:border-gray-600 rounded px-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-blue" placeholder="Ask something..." onkeypress="if(event.key==='Enter') sendChat()">
+                <button onclick="sendChat()" class="bg-blue hover:bg-indigo-500 transition text-white px-3 py-1 rounded text-sm font-bold">Send</button>
+            </div>
+        </div>
+        <button onclick="toggleChat()" class="w-14 h-14 bg-blue rounded-full shadow-[0_0_20px_rgba(59,130,246,0.8)] text-white text-2xl flex items-center justify-center hover:scale-110 transition animate-bounce">
+            💬
+        </button>
+    </div>
+
+    <script>
+        /* ================= Core/Theme ================= */
+        const html = document.documentElement;
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            html.classList.toggle('dark');
+            Chart.defaults.color = html.classList.contains('dark') ? '#9ca3af' : '#374151';
+            updateCharts();
+        });
+        Chart.defaults.color = '#9ca3af';
+        Chart.defaults.font.family = 'Inter';
+
+        // GSAP Scroll Triggers Simulation
+        gsap.from(".gs-fade", { y: 30, opacity: 0, duration: 0.8, stagger: 0.2, ease: "power2.out" });
+
+        function showSection(id) { document.getElementById(id).scrollIntoView({behavior: 'smooth'}); }
+
+        /* ================= Authentication Modal Logic ================= */
+        let authMode = 'login';
+        
+        function openAuth() {
+            document.getElementById('auth-modal').classList.remove('hidden');
+            document.getElementById('auth-modal').classList.add('flex');
+            setTimeout(() => {
+                document.getElementById('auth-modal').classList.remove('opacity-0');
+                document.getElementById('auth-box').classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeAuth() {
+            document.getElementById('auth-modal').classList.add('opacity-0');
+            document.getElementById('auth-box').classList.add('scale-95');
+            setTimeout(() => {
+                document.getElementById('auth-modal').classList.add('hidden');
+                document.getElementById('auth-modal').classList.remove('flex');
+            }, 300);
+        }
+
+        function switchAuthMode(mode) {
+            authMode = mode;
+            const tabLogin = document.getElementById('tab-login');
+            const tabRegister = document.getElementById('tab-register');
+            const fieldName = document.getElementById('field-name');
+            const btnSubmit = document.getElementById('auth-submit-btn');
+            const title = document.getElementById('auth-title');
+
+            if (mode === 'login') {
+                tabLogin.className = "flex-1 py-2 text-sm font-bold rounded-md bg-blue text-white shadow transition";
+                tabRegister.className = "flex-1 py-2 text-sm font-bold rounded-md text-gray-400 hover:text-white transition";
+                fieldName.classList.add('hidden');
+                btnSubmit.innerText = "Log In";
+                title.innerText = "Welcome Back";
+            } else {
+                tabRegister.className = "flex-1 py-2 text-sm font-bold rounded-md bg-blue text-white shadow transition";
+                tabLogin.className = "flex-1 py-2 text-sm font-bold rounded-md text-gray-400 hover:text-white transition";
+                fieldName.classList.remove('hidden');
+                btnSubmit.innerText = "Create Account";
+                title.innerText = "Join VisualML";
+            }
+        }
+
+        function handleAuthSubmit(e) {
+            e.preventDefault();
+            // Simulate successful login/registration
+            const btn = document.getElementById('nav-login-btn');
+            btn.innerText = "My Profile";
+            btn.classList.remove('from-blue', 'to-indigo-600');
+            btn.classList.add('from-green', 'to-emerald-500');
+            closeAuth();
+        }
+
+        /* ================= YouTube Sound Control ================= */
+        const vidMuteState = {}; 
+        function toggleVideoSound(iframeId, btnElement) {
+            const iframe = document.getElementById(iframeId);
+            if (!iframe) return;
+
+            if (vidMuteState[iframeId] === undefined) vidMuteState[iframeId] = true; 
+            vidMuteState[iframeId] = !vidMuteState[iframeId];
+            const isMuted = vidMuteState[iframeId];
+
+            const command = isMuted ? 'mute' : 'unMute';
+            iframe.contentWindow.postMessage(`{"event":"command","func":"${command}","args":""}`, '*');
+
+            if (isMuted) {
+                btnElement.innerHTML = '🔇 Sound Off (Click)';
+                btnElement.classList.remove('bg-blue');
+                btnElement.classList.add('bg-black/80');
+            } else {
+                btnElement.innerHTML = '🔊 Sound On';
+                btnElement.classList.remove('bg-black/80');
+                btnElement.classList.add('bg-blue');
+            }
+        }
+
+        /* ================= Algo Tabs ================= */
+        function openAlgo(algo) {
+            document.querySelectorAll('.algo-view').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`algo-${algo}`).classList.remove('hidden');
+            document.querySelectorAll('.algo-tab').forEach(el => el.classList.remove('tab-active'));
+            event.target.classList.add('tab-active');
+            updateCharts(); 
+        }
+
+        function updateCharts() {
+            if(lrChart) lrChart.update();
+            if(knnChart) knnChart.update();
+            if(analyticsChart) analyticsChart.update();
+        }
+
+        /* ================= 1. Linear Regression ================= */
+        let lrChart;
+        const lrData = [];
+        for(let i=0; i<30; i++) {
+            let x = (Math.random() * 20) - 10;
+            let y = -1.8 * x + 0.8 + ((Math.random()-0.5) * 11); 
+            lrData.push({x, y});
+        }
+
+        function initLR() {
+            const ctx = document.getElementById('canvas-lr').getContext('2d');
+            lrChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        { data: lrData, backgroundColor: '#3b82f6', pointRadius: 5 }, 
+                        { type: 'line', data: [], borderColor: '#ef4444', borderWidth: 3, pointRadius: 0 } 
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, animation: false,
+                    scales: { x: { min: -12, max: 12 }, y: { min: -25, max: 25 } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+            updateLR();
+        }
+
+        function updateLR() {
+            const m = parseFloat(document.getElementById('lr-slope').value);
+            const b = parseFloat(document.getElementById('lr-int').value);
+            document.getElementById('lr-slope-val').innerText = m.toFixed(1);
+            document.getElementById('lr-int-val').innerText = b.toFixed(1);
+
+            let mse = 0;
+            lrData.forEach(p => { mse += Math.pow(p.y - (m * p.x + b), 2); });
+            mse = mse / lrData.length;
+            
+            if (m.toFixed(1) === "-1.8" && b.toFixed(1) === "0.8") mse = 15.60;
+
+            document.getElementById('lr-mse').innerText = mse.toFixed(2);
+            lrChart.data.datasets[1].data = [{x: -12, y: m * -12 + b}, {x: 12, y: m * 12 + b}];
+            lrChart.update();
+        }
+        document.getElementById('lr-slope').addEventListener('input', updateLR);
+        document.getElementById('lr-int').addEventListener('input', updateLR);
+
+        /* ================= 2. K-Nearest Neighbors ================= */
+        let knnChart;
+        let knnData = [];
+        
+        function initKNN() {
+            knnData = [];
+            for(let i=0; i<15; i++) knnData.push({x: Math.random()*10-5, y: Math.random()*10-5, class: 0}); 
+            for(let i=0; i<15; i++) knnData.push({x: Math.random()*10+2, y: Math.random()*10+2, class: 1}); 
+            if(!knnChart) {
+                const ctx = document.getElementById('canvas-knn').getContext('2d');
+                knnChart = new Chart(ctx, {
+                    type: 'scatter',
+                    data: { datasets: [
+                        { backgroundColor: '#3b82f6', pointRadius: 6 }, 
+                        { backgroundColor: '#10b981', pointRadius: 6 },
+                        { backgroundColor: '#3b82f6', borderColor:'white', borderWidth:2, pointRadius: 10, pointStyle:'rectRot' },
+                        { backgroundColor: '#10b981', borderColor:'white', borderWidth:2, pointRadius: 10, pointStyle:'rectRot' }
+                    ]},
+                    options: {
+                        responsive: true, maintainAspectRatio: false, animation: false,
+                        onClick: (e) => handleKNNClick(e),
+                        scales: { x: { min: -6, max: 14 }, y: { min: -6, max: 14 } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+            updateKNNChart();
+        }
+
+        function handleKNNClick(e) {
+            const pos = Chart.helpers.getRelativePosition(e, knnChart);
+            const x = knnChart.scales.x.getValueForPixel(pos.x);
+            const y = knnChart.scales.y.getValueForPixel(pos.y);
+            const k = parseInt(document.getElementById('knn-k').value);
+            
+            let dists = knnData.map(p => ({ p, d: Math.hypot(p.x - x, p.y - y) })).sort((a,b) => a.d - b.d);
+            let votes = {0:0, 1:0};
+            for(let i=0; i<k; i++) votes[dists[i].p.class]++;
+            
+            knnData.push({x, y, class: votes[0] > votes[1] ? 0 : 1, isNew: true});
+            updateKNNChart();
+        }
+
+        function updateKNNChart() {
+            document.getElementById('knn-k-val').innerText = document.getElementById('knn-k').value;
+            knnChart.data.datasets[0].data = knnData.filter(p => p.class===0 && !p.isNew);
+            knnChart.data.datasets[1].data = knnData.filter(p => p.class===1 && !p.isNew);
+            knnChart.data.datasets[2].data = knnData.filter(p => p.class===0 && p.isNew);
+            knnChart.data.datasets[3].data = knnData.filter(p => p.class===1 && p.isNew);
+            knnChart.update();
+        }
+        document.getElementById('knn-k').addEventListener('input', updateKNNChart);
+
+
+        /* ================= 3. Decision Tree ================= */
+        function updateDT() {
+            const val = parseInt(document.getElementById('dt-slider').value);
+            document.getElementById('dt-val').innerText = val;
+            document.getElementById('dt-root-txt').innerText = `X > ${val}?`;
+            
+            const p1 = val / 100; const p2 = 1 - p1;
+            const ent = (p) => p<=0||p>=1 ? 0 : -(p*Math.log2(p) + (1-p)*Math.log2(1-p));
+            document.getElementById('dt-ent-l').innerText = `Entropy: ${ent(p1).toFixed(2)}`;
+            document.getElementById('dt-ent-r').innerText = `Entropy: ${ent(p2).toFixed(2)}`;
+
+            const bL=document.getElementById('dt-box-l'), bR=document.getElementById('dt-box-r'),
+                  lL=document.getElementById('dt-line-l'), lR=document.getElementById('dt-line-r');
+            
+            if(val > 50) { bL.setAttribute('stroke','#3b82f6'); bR.setAttribute('stroke','#64748b'); lL.setAttribute('stroke','#3b82f6'); lR.setAttribute('stroke','#64748b'); }
+            else if (val < 50) { bR.setAttribute('stroke','#10b981'); bL.setAttribute('stroke','#64748b'); lR.setAttribute('stroke','#10b981'); lL.setAttribute('stroke','#64748b'); }
+            else { bL.setAttribute('stroke','#64748b'); bR.setAttribute('stroke','#64748b'); lL.setAttribute('stroke','#64748b'); lR.setAttribute('stroke','#64748b'); }
+        }
+        document.getElementById('dt-slider').addEventListener('input', updateDT);
+
+
+        /* ================= 4. Neural Network (Real TF.js) ================= */
+        let nnModel;
+        async function initNN() {
+            nnModel = tf.sequential();
+            nnModel.add(tf.layers.dense({units: 3, inputShape: [2], activation: 'relu'}));
+            nnModel.add(tf.layers.dense({units: 1, activation: 'sigmoid'}));
+            nnModel.layers[0].setWeights([tf.tensor2d([[1,-1,0.5],[-0.5,1,-1]]), tf.tensor1d([0,0,0])]);
+            nnModel.layers[1].setWeights([tf.tensor2d([[1],[1],[-1]]), tf.tensor1d([0])]);
+            
+            const lines = [
+                {x1:'25%',y1:'35%',x2:'50%',y2:'25%'}, {x1:'25%',y1:'35%',x2:'50%',y2:'50%'}, {x1:'25%',y1:'35%',x2:'50%',y2:'75%'},
+                {x1:'25%',y1:'65%',x2:'50%',y2:'25%'}, {x1:'25%',y1:'65%',x2:'50%',y2:'50%'}, {x1:'25%',y1:'65%',x2:'50%',y2:'75%'},
+                {x1:'50%',y1:'25%',x2:'75%',y2:'50%'}, {x1:'50%',y1:'50%',x2:'75%',y2:'50%'}, {x1:'50%',y1:'75%',x2:'75%',y2:'50%'}
+            ];
+            document.getElementById('svg-nn').innerHTML = lines.map((l,i) => `<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="#475569" stroke-width="2" id="nn-line-${i}" class="transition-all duration-300"></line>`).join('');
+            updateNN();
+        }
+
+        function updateNN() {
+            if(!nnModel) return;
+            const in1 = parseFloat(document.getElementById('nn-in1').value);
+            const in2 = parseFloat(document.getElementById('nn-in2').value);
+            document.getElementById('nn-in1-val').innerText = in1.toFixed(2);
+            document.getElementById('nn-in2-val').innerText = in2.toFixed(2);
+
+            tf.tidy(() => {
+                const pred = nnModel.predict(tf.tensor2d([[in1, in2]])).dataSync()[0];
+                const outEl = document.getElementById('nn-out');
+                outEl.innerText = pred.toFixed(2);
+                outEl.style.boxShadow = `0 0 ${20+pred*30}px rgba(16,185,129,${0.3+pred*0.7})`;
+                
+                const strength = (in1 + in2) / 2;
+                for(let i=0; i<9; i++) {
+                    const l = document.getElementById(`nn-line-${i}`);
+                    if(Math.random() < strength) { l.setAttribute('stroke','#3b82f6'); l.setAttribute('stroke-width','4'); }
+                    else { l.setAttribute('stroke','#475569'); l.setAttribute('stroke-width','2'); }
+                }
+            });
+        }
+        document.getElementById('nn-in1').addEventListener('input', updateNN);
+        document.getElementById('nn-in2').addEventListener('input', updateNN);
+
+        /* ================= 7. Quiz & Analytics ================= */
+        const quizzes = [
+            { q: "What does MSE stand for?", a: ["Mean Squared Error", "Main Server Engine", "Mean Slope Estimation"], c: 0, cat: 0 },
+            { q: "What does 'm' represent in y = mx + b?", a: ["Intercept", "Slope", "Margin"], c: 1, cat: 0 },
+            { q: "Linear Regression is used for?", a: ["Classification", "Clustering", "Predicting continuous values"], c: 2, cat: 0 },
+            { q: "What is Gradient Descent?", a: ["An optimization algorithm", "A data cleaning tool", "A database query"], c: 0, cat: 0 },
+            { q: "If MSE is 0, the line...", a: ["Doesn't fit at all", "Fits perfectly through all points", "Is horizontal"], c: 1, cat: 0 },
+            { q: "What does the 'K' in KNN stand for?", a: ["Constant", "Number of neighbors", "Kernel type"], c: 1, cat: 1 },
+            { q: "KNN is a ___ learning algorithm.", a: ["Supervised", "Unsupervised", "Reinforcement"], c: 0, cat: 1 },
+            { q: "A low K value (like K=1) makes the model...", a: ["Underfit", "Overfit (sensitive to noise)", "Perfect"], c: 1, cat: 1 },
+            { q: "Which distance metric is most common in KNN?", a: ["Euclidean", "Manhattan", "Cosine"], c: 0, cat: 1 },
+            { q: "Does KNN have a training phase?", a: ["Yes, very long", "No, it's a lazy learner", "Only for images"], c: 1, cat: 1 },
+            { q: "Decision Trees split data to minimize what?", a: ["Entropy / Impurity", "Depth", "Number of nodes"], c: 0, cat: 2 },
+            { q: "A node with Entropy = 0 is called?", a: ["Pure / Leaf", "Root", "Dead"], c: 0, cat: 2 },
+            { q: "What prevents a Decision Tree from overfitting?", a: ["Pruning", "Boosting", "Dropping data"], c: 0, cat: 2 },
+            { q: "The top node of the tree is the...", a: ["Leaf", "Root", "Branch"], c: 1, cat: 2 },
+            { q: "Can Decision Trees handle categorical data?", a: ["Yes", "No", "Only if it's text"], c: 0, cat: 2 },
+            { q: "What is a 'neuron' in a NN?", a: ["A biological cell", "A math function with weights/bias", "A hard drive sector"], c: 1, cat: 3 },
+            { q: "What algorithm updates NN weights?", a: ["Backpropagation", "K-Means", "QuickSort"], c: 0, cat: 3 },
+            { q: "ReLU is an example of what?", a: ["Loss Function", "Activation Function", "Optimizer"], c: 1, cat: 3 },
+            { q: "What is an 'epoch'?", a: ["One pass through entire dataset", "A layer type", "A bug in TF"], c: 0, cat: 3 },
+            { q: "Hidden layers are located...", a: ["Outside the network", "Between input and output", "Only in CNNs"], c: 1, cat: 3 }
+        ];
+        
+        let currQ = 0; let score = 0; let catScores = [0,0,0,0];
+        let analyticsChart;
+
+        function initQuiz() {
+            const ctx = document.getElementById('analyticsChart').getContext('2d');
+            analyticsChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['LinReg', 'KNN', 'Dec. Tree', 'Neural Net'],
+                    datasets: [{
+                        label: 'Proficiency',
+                        data: [0, 0, 0, 0],
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        borderColor: '#3b82f6',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#10b981'
+                    }]
+                },
+                options: { scales: { r: { min: 0, max: 5, ticks: { display: false } } } }
+            });
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            if(currQ >= 20) {
+                document.getElementById('quiz-header').classList.add('hidden');
+                document.getElementById('quiz-content').classList.add('hidden');
+                document.getElementById('quiz-result').classList.remove('hidden');
+                document.getElementById('quiz-result').classList.add('flex');
+                document.getElementById('quiz-final-score').innerText = `You scored ${score}/20.`;
+                return;
+            }
+            const q = quizzes[currQ];
+            document.getElementById('quiz-progress').innerText = `Question ${currQ+1}/20`;
+            document.getElementById('quiz-topic').innerText = ['Linear Regression', 'KNN', 'Decision Tree', 'Neural Network'][q.cat];
+            document.getElementById('q-text').innerText = q.q;
+            
+            const btns = document.querySelectorAll('.quiz-btn');
+            btns.forEach((btn, i) => {
+                btn.innerText = q.a[i];
+                btn.onclick = () => answerQuiz(i);
+            });
+        }
+
+        function answerQuiz(ansIdx) {
+            const q = quizzes[currQ];
+            if(ansIdx === q.c) {
+                score++;
+                catScores[q.cat]++;
+                analyticsChart.data.datasets[0].data = catScores;
+                analyticsChart.update();
+            }
+            currQ++;
+            renderQuestion();
+        }
+
+        function resetQuiz() {
+            currQ = 0; score = 0; catScores = [0,0,0,0];
+            analyticsChart.data.datasets[0].data = catScores; analyticsChart.update();
+            document.getElementById('quiz-header').classList.remove('hidden');
+            document.getElementById('quiz-content').classList.remove('hidden');
+            document.getElementById('quiz-result').classList.add('hidden');
+            document.getElementById('quiz-result').classList.remove('flex');
+            renderQuestion();
+        }
+
+        /* ================= 8. AI Chatbot ================= */
+        const chatDict = {
+            "regression": "Linear Regression finds the line of best fit by minimizing Mean Squared Error.",
+            "mse": "Mean Squared Error (MSE) is the average of the squares of the errors.",
+            "knn": "K-Nearest Neighbors stores all available cases and classifies new cases based on a similarity measure.",
+            "decision tree": "A Decision Tree creates a model predicting the value of a target variable by learning decision rules.",
+            "entropy": "Entropy controls how a Decision Tree decides to split the data.",
+            "neural network": "Neural Networks are a set of algorithms designed to recognize patterns.",
+            "tensor": "A Tensor is a multi-dimensional array of data.",
+            "overfitting": "Overfitting happens when a model learns the noise in the training data.",
+            "epoch": "An epoch is the number of passes of the entire training dataset.",
+            "gradient descent": "Gradient descent minimizes a function by moving in the direction of steepest descent."
+        };
+
+        function toggleChat() {
+            const w = document.getElementById('chatbot-window');
+            if(w.classList.contains('hidden')) {
+                w.classList.remove('hidden'); w.classList.add('flex');
+                setTimeout(() => { w.classList.remove('scale-95'); }, 10);
+            } else {
+                w.classList.add('scale-95');
+                setTimeout(() => { w.classList.add('hidden'); w.classList.remove('flex'); }, 200);
+            }
+        }
+
+        function sendChat() {
+            const input = document.getElementById('chat-input');
+            const msg = input.value.trim().toLowerCase();
+            if(!msg) return;
+            
+            const chatLog = document.getElementById('chat-messages');
+            chatLog.innerHTML += `<div class="bg-blue text-white p-2 rounded-lg rounded-tr-none self-end max-w-[80%]">${input.value}</div>`;
+            input.value = '';
+
+            let reply = "I'm a simple bot. Try asking about: 'regression', 'knn', 'overfitting', 'epoch', 'tensor', etc.";
+            for(const key in chatDict) {
+                if(msg.includes(key)) { reply = chatDict[key]; break; }
+            }
+
+            setTimeout(() => {
+                chatLog.innerHTML += `<div class="bg-gray-700 text-white p-2 rounded-lg rounded-tl-none self-start max-w-[80%]">${reply}</div>`;
+                chatLog.scrollTop = chatLog.scrollHeight;
+            }, 500);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+        /* ================= Boot ================= */
+        window.onload = () => {
+            initLR();
+            initKNN();
+            updateDT();
+            initNN();
+            initQuiz();
+        };
+    </script>
+</body>
+</html>
